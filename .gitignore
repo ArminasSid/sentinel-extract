@@ -1,0 +1,14 @@
+# Ignore all
+/*
+
+# Except these files
+!README.md
+!.gitignore
+!main.py
+!requirements.txt
+
+# Except these folders
+!src/
+
+# Additionally ignore these folders
+__pycache__
