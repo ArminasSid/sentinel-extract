@@ -3,20 +3,21 @@ from PIL import Image
 from osgeo import gdal, ogr
 import pandas as pd
 import argparse
-import shutil, glob
+import shutil
 from tqdm import tqdm
 import numpy as np
-import sys
+
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Warper, if input folder contains kml masks, will use them.')
+    parser = argparse.ArgumentParser(
+        description='Warper, if input folder contains kml masks, will use them.')
     # model and dataset
     parser.add_argument("-i", '--input_folder', type=str, default='2020/LKS94_Reprojected',
                         help='input folder path (default: LKS94_Reprojected)')
     parser.add_argument("-o", '--output_folder', type=str, default='Cuts',
                         help='output folder path (default: Cuts)')
     parser.add_argument('--overwrite', action='store_true', default=False,
-                    help='Overwrite output folder if exists')
+                        help='Overwrite output folder if exists')
 
     args = parser.parse_args()
 
@@ -27,12 +28,14 @@ def parse_args():
     if not os.path.exists(path):
         os.makedirs(path)
     elif not args.overwrite:
-        raise PermissionError('Folder exists, add --overwrite if you want to overwrite it.')
+        raise PermissionError(
+            'Folder exists, add --overwrite if you want to overwrite it.')
     else:
         shutil.rmtree(path)
         os.makedirs(path)
 
     return args
+
 
 def tile_coords(tile):
     if str(tile).lower() == 'south':
@@ -44,6 +47,7 @@ def tile_coords(tile):
     else:
         raise KeyError('Tile name not found.')
     return ul_x_y, lr_x_y
+
 
 def image_coordinates(img):
     #img = gdal.Open(image)
@@ -60,14 +64,14 @@ def image_coordinates(img):
 
 def contains_dead_pixels(image):
     data = image.ReadAsArray()
-    if np.count_nonzero(data == np.zeros(1, dtype=int)) > 10: 
+    if np.count_nonzero(data == np.zeros(1, dtype=int)) > 10:
         return True
     return False
 
 
 def contains_dead_pixels_rgb(image):
     data = np.transpose(image.ReadAsArray(), axes=(1, 2, 0))
-    if np.count_nonzero(data == np.zeros((3), dtype=int)) > 10: 
+    if np.count_nonzero(data == np.zeros((3), dtype=int)) > 10:
         return True
     return False
 
@@ -80,10 +84,10 @@ def contains_clouds(image):
 
 
 def check_if_fits_req(x_y, w_x_y):
-    if not (x_y[0] < w_x_y[0] 
-        and x_y[1] > w_x_y[1]
-        and x_y[2] > w_x_y[2]
-        and x_y[3] < w_x_y[3] ):
+    if not (x_y[0] < w_x_y[0]
+            and x_y[1] > w_x_y[1]
+            and x_y[2] > w_x_y[2]
+            and x_y[3] < w_x_y[3]):
         return False
     return True
 
@@ -97,11 +101,11 @@ def calculate_iterations(starting_point, end_point, step):
 
 def wanted_x_y(ul_x_y, step, i_offset, j_offset):
     return [
-            ul_x_y[0] + (i_offset * step),
-            ul_x_y[1] - (j_offset * step),
-            ul_x_y[0] + ((i_offset + 1) * step + step),
-            ul_x_y[1] - ((j_offset + 1) * step + step)
-            ]
+        ul_x_y[0] + (i_offset * step),
+        ul_x_y[1] - (j_offset * step),
+        ul_x_y[0] + ((i_offset + 1) * step + step),
+        ul_x_y[1] - ((j_offset + 1) * step + step)
+    ]
 
 
 def filter_images(images, masks, coords, w_x_y):
@@ -118,11 +122,11 @@ def filter_images(images, masks, coords, w_x_y):
 
 
 def warp_memory(image, bounds):
-    return gdal.Warp('', image, format='VRT', outputBounds = bounds)
+    return gdal.Warp('', image, format='VRT', outputBounds=bounds)
 
 
 def warp_to_file(image, output_path, bounds):
-    return gdal.Warp(output_path, image, format='GTiff', outputBounds = bounds)
+    return gdal.Warp(output_path, image, format='GTiff', outputBounds=bounds)
 
 
 def produce_image_without_clouds(bounds, output_path, images, masks, rgb):
@@ -163,12 +167,19 @@ def cut_normal(tile, ul_x_y, lr_x_y, _input_images, _input_masks, output_folder,
         for j in j_range:
             w_x_y = wanted_x_y(ul_x_y, step, i, j)
 
-            filtered_images, filtered_masks, filtered_coords = filter_images(_input_images, _input_masks, _input_coords, w_x_y)
+            filtered_images, filtered_masks, filtered_coords = filter_images(
+                _input_images,
+                _input_masks,
+                _input_coords,
+                w_x_y
+            )
             number = '{0}_{1}'.format(str(i).zfill(5), str(j).zfill(5))
-            output_image = "{}/image_{}_{}.jp2".format(output_folder, tile, number)
+            output_image = "{}/image_{}_{}.jp2".format(
+                output_folder, tile, number)
             bounds = [w_x_y[0], w_x_y[3], w_x_y[2], w_x_y[1]]
 
-            produce_image_without_clouds(bounds, output_image, filtered_images, filtered_masks, rgb)
+            produce_image_without_clouds(
+                bounds, output_image, filtered_images, filtered_masks, rgb)
 
 
 def load_rasters(image_paths):
@@ -194,7 +205,7 @@ def warp(input_folder, output_folder):
         input_images.append('{}/image_{}.jp2'.format(input_folder, i))
         input_masks.append('{}/mask_{}.jp2'.format(input_folder, i))
     print("Detected {} images, loading images as rasters...".format(len(input_images)))
-    
+
     images = load_rasters(input_images)
     masks = load_rasters(input_masks)
     tiles = ["north", "south"]
@@ -206,7 +217,8 @@ def warp(input_folder, output_folder):
     for tile in tiles:
         print("Forming {} part".format(tile))
         ul_x_y, lr_x_y = tile_coords(tile)
-        cut_normal(tile, ul_x_y, lr_x_y, images, masks, output_folder, step, rgb)
+        cut_normal(tile, ul_x_y, lr_x_y, images,
+                   masks, output_folder, step, rgb)
 
 
 def main():
@@ -214,5 +226,5 @@ def main():
     warp(args.input_folder, args.output_folder)
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
     main()
