@@ -66,6 +66,7 @@ def test_contains_dead_pixels_positive(mocker):
 
     assert warper.contains_dead_pixels(gdal.Dataset)
 
+
 def test_contains_dead_pixels_rgb_positive(mocker):
     mocker.patch('osgeo.gdal.Dataset.ReadAsArray', return_value=np.ones((100, 100, 100)))
 
@@ -75,3 +76,36 @@ def test_contains_dead_pixels_rgb_positive(mocker):
     mocker.patch('osgeo.gdal.Dataset.ReadAsArray', return_value=np.zeros((3, 100, 100)))
 
     assert warper.contains_dead_pixels_rgb(gdal.Dataset)
+
+
+def test_calculate_iterations_startpoint_greater_than_endpoint():
+    result = warper.calculate_iterations(
+        starting_point=100,
+        end_point=50,
+        step=10
+    )
+
+    assert result > 0
+
+def test_calculate_iterations_endpoint_greater_than_startpoint():
+    result = warper.calculate_iterations(
+        starting_point=50,
+        end_point=100,
+        step=10
+    )
+    
+    assert result > 0
+
+
+def test_load_rasters_3(mocker):
+    mocker.patch('osgeo.gdal.Open', return_value=np.zeros(10, dtype=int))
+    raster_paths = [
+        'path1',
+        'path2',
+        'path3'
+    ]
+
+    result = warper.load_rasters(image_paths=raster_paths)
+
+    assert len(result) == 3
+    assert np.all((result == np.zeros(10, dtype=int)))
