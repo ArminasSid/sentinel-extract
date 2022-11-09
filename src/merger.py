@@ -19,13 +19,6 @@ def parse_args():
     check_input_folder(folder=args.input_folder)
     check_output_folder(folder=args.output_folder)
 
-    # if not os.path.exists(args.input_folder):
-    #     raise NotADirectoryError('Input folder not found.')
-
-    # path = '{}'.format(args.output_folder)
-    # if not os.path.exists(path):
-    #     os.makedirs(path)
-
     return args
 
 
