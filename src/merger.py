@@ -16,14 +16,28 @@ def parse_args():
 
     args = parser.parse_args()
 
-    if not os.path.exists(args.input_folder):
-        raise NotADirectoryError('Input folder not found.')
+    check_input_folder(folder=args.input_folder)
+    check_output_folder(folder=args.output_folder)
 
-    path = '{}'.format(args.output_folder)
-    if not os.path.exists(path):
-        os.makedirs(path)
+    # if not os.path.exists(args.input_folder):
+    #     raise NotADirectoryError('Input folder not found.')
+
+    # path = '{}'.format(args.output_folder)
+    # if not os.path.exists(path):
+    #     os.makedirs(path)
 
     return args
+
+
+def check_input_folder(folder):
+    if not os.path.exists(path=folder):
+        raise NotADirectoryError('Input folder not found.')
+
+def check_output_folder(folder):
+    if not os.path.exists(path=folder):
+        os.makedirs(name=folder)
+    else:
+        raise OSError('Folder already exists.')
 
 def BuildVRT(output_path, output_name, input_paths):
     output = "{}/{}".format(output_path, "{}.vrt".format(output_name))
