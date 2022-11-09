@@ -35,6 +35,7 @@ def test_process_output_folder_exists_folder_enabled_overwrite(tmp_path):
     warper.process_output_folder(output_path=tmp_path, overwrite_allowed=True)
 
     assert not os.path.exists(path=path)
+    assert os.path.exists(path=tmp_path)
 
 
 def test_is_img_rgb_positive(mocker):
@@ -67,7 +68,7 @@ def test_contains_dead_pixels_positive(mocker):
     assert warper.contains_dead_pixels(gdal.Dataset)
 
 
-def test_contains_dead_pixels_rgb_positive(mocker):
+def test_contains_dead_pixels_rgb_negative(mocker):
     mocker.patch('osgeo.gdal.Dataset.ReadAsArray', return_value=np.ones((100, 100, 100)))
 
     assert not warper.contains_dead_pixels_rgb(gdal.Dataset)

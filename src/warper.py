@@ -84,7 +84,7 @@ def contains_dead_pixels(image):
 
 def contains_dead_pixels_rgb(image):
     data = np.transpose(image.ReadAsArray(), axes=(1, 2, 0))
-    if np.count_nonzero(data == np.zeros((3), dtype=int)) > 10:
+    if np.count_nonzero(data == np.zeros(3, dtype=int)) > 10:
         return True
     return False
 
