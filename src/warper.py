@@ -1,11 +1,11 @@
 import os
-from PIL import Image
-from osgeo import gdal, ogr
-import pandas as pd
+from osgeo import gdal
 import argparse
 import shutil
 from tqdm import tqdm
 import numpy as np
+import warnings
+warnings.filterwarnings("ignore")
 
 
 def parse_args():
@@ -21,20 +21,33 @@ def parse_args():
 
     args = parser.parse_args()
 
-    if not os.path.exists(args.input_folder):
-        raise NotADirectoryError('Input folder not found.')
-
-    path = '{}'.format(args.output_folder)
-    if not os.path.exists(path):
-        os.makedirs(path)
-    elif not args.overwrite:
-        raise PermissionError(
-            'Folder exists, add --overwrite if you want to overwrite it.')
-    else:
-        shutil.rmtree(path)
-        os.makedirs(path)
+    check_if_is_directory(folder_path=args.input_folder)
+    process_output_folder(
+        output_path=args.output_folder,
+        overwrite_allowed=args.overwrite
+    )
 
     return args
+
+
+def check_if_is_directory(folder_path: str):
+    if not os.path.exists(path=folder_path):
+        raise NotADirectoryError('Input folder not found.')
+
+
+def process_output_folder(output_path: str, overwrite_allowed: bool):
+    if not os.path.exists(path=output_path):
+        # If folder doesn't exist, just create it
+        os.makedirs(name=output_path)
+    elif not overwrite_allowed:
+        # Folder exists, overwrite not enabled
+        raise PermissionError(
+            'Folder exists, add --overwrite if you want to overwrite it.'
+        )
+    else:
+        # Folder exists, overwrite enabled
+        shutil.rmtree(path=output_path)
+        os.makedirs(name=output_path)
 
 
 def tile_coords(tile):
