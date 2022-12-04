@@ -1,10 +1,11 @@
 import argparse
 import os
 import shutil
-from src import extracter, converter, warper, merger
+from src import converter, warper, merger
+from src import extracter_v1 as extracter
 import pandas as pd
-from tqdm import tqdm
 from glob import glob
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Process Sentinel-2 data into a singular image of area of interest.')
@@ -42,16 +43,17 @@ def validate_args(args) -> None:
 def do_extracting(args):
     # Basic extraction of zip files (Hardcoded to use .jp2 masks instead of polygon masks) 
     output = f'{args.output_folder}/extracted'
+    os.makedirs(name=output, exist_ok=True)
     
-    systems_of_interest = ['T34', 'T35']
-    folders = []
-    for element in systems_of_interest:
-        # Create folder path
-        folders.append(f'{output}/{element}')
+    # systems_of_interest = ['T34', 'T35']
+    # folders = []
+    # for element in systems_of_interest:
+    #     # Create folder path
+    #     folders.append(f'{output}/{element}')
         
-    for folder in folders:
-        # Create folders if they don't exist yet
-        os.makedirs(name=folder, exist_ok=True)
+    # for folder in folders:
+    #     # Create folders if they don't exist yet
+    #     os.makedirs(name=folder, exist_ok=True)
     
     # Read csv, sort by cloud cover and ingestion date
     products_df = pd.read_csv(args.configuration, index_col=0)
@@ -60,9 +62,23 @@ def do_extracting(args):
         ascending=[True, True])
     
     # Iterate over every product and uzip useful parts
-    for product in tqdm(products_df_sorted['title'].tolist()):
+    zipfiles = products_df_sorted['title'].tolist()
+    # Extract products
+    extracter.extract(
+        input_folder=args.input_folder,
+        input_zipfiles=zipfiles,
+        output_folder=output
+    )
+    # for product in tqdm(products_df_sorted['title'].tolist()):
+    #     # Extract products
+    #     extracter.extract(
+    #         input_folder=args.input_folder,
+    #         input_zipfiles=
+    #     )
+
+        
         # Hardcoded TCI value (True Color Image) 
-        extracter.pull_products0(args.input_folder, 'TCI', '{}.zip'.format(product), folders)
+        # extracter.pull_products0(args.input_folder, 'TCI', '{}.zip'.format(product), folders)
     
     return output    
 
@@ -133,14 +149,14 @@ def main():
     
     # Reporoject images (Change coordinate systems to WGS84)
     # ------
-    print('Initiating image reprojection.')
-    output_reprojected = do_converting(args=args, extracted=output_extracted)
+    # print('Initiating image reprojection.')
+    # output_reprojected = do_converting(args=args, extracted=output_extracted)
     # ------
     
     # Warp images into a mosaic, while removing clouds
     # ------
     print('Initiating image warping.')
-    output_warped = do_warping(args=args, reprojected=output_reprojected)
+    output_warped = do_warping(args=args, reprojected=output_extracted)
     # ------
     
     # Merge images into final single image
