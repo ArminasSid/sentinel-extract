@@ -93,6 +93,9 @@ def extract(input_folder: str, input_zipfiles: str, output_folder: str) -> None:
                 B=f'{tmp_dir}/B03.jp2', 
                 output_file=f'{output_folder}/image_FCI_{str(counter):2}.tiff'
             )
+            
+        # Append the counter
+        counter += 1
 
 
 
