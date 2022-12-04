@@ -123,12 +123,5 @@ def main():
     )
 
 
-def main1():
-    products_df = pd.read_csv(input_products, index_col=0)
-    products_df_sorted = products_df.sort_values(['cloudcoverpercentage', 'ingestiondate'], ascending=[True, True])
-    for product in tqdm(products_df_sorted['title'].tolist()):
-
-
-
 if __name__ == '__main__':
     main()
