@@ -74,7 +74,7 @@ def extract(input_folder: str, input_zipfiles: str, output_folder: str) -> None:
 
     for zipfile in tqdm(input_zipfiles):
         zipfile = f'{input_folder}/{zipfile}.zip'
-        with tempfile.gettempdir() as tmp_dir:
+        with tempfile.TemporaryDirectory() as tmp_dir:
             extract_bands_from_zip_file(zipfile=zipfile, output_folder=tmp_dir, bands=bands)
             extract_cloudmsk_from_zip_file(zipfile=zipfile, output_folder=output_folder, counter=counter)
 
