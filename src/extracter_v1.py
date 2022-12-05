@@ -40,7 +40,7 @@ def extract_cloudmsk_from_zip_file(zipfile: str, output_folder: str, counter: in
         pattern = '**CLDPRB_20m**.jp2'
         filepath = fnmatch.filter(names=files, pat=pattern)[0]
         zip_info = zip_ref.getinfo(name=filepath)
-        zip_info.filename = f'mask_{str(counter):2}.jp2'
+        zip_info.filename = f'mask_{str(counter).zfill(2)}.jp2'
         zip_ref.extract(member=zip_info, path=output_folder)
 
 
@@ -83,7 +83,7 @@ def extract(input_folder: str, input_zipfiles: str, output_folder: str) -> None:
                 R=f'{tmp_dir}/B04.jp2', 
                 G=f'{tmp_dir}/B03.jp2', 
                 B=f'{tmp_dir}/B02.jp2', 
-                output_file=f'{output_folder}/image_TCI_{str(counter):2}.tiff'
+                output_file=f'{output_folder}/image_TCI_{str(counter).zfill(2)}.tiff'
             )
 
             # Produce False Color Image
@@ -91,7 +91,7 @@ def extract(input_folder: str, input_zipfiles: str, output_folder: str) -> None:
                 R=f'{tmp_dir}/B08.jp2', 
                 G=f'{tmp_dir}/B04.jp2', 
                 B=f'{tmp_dir}/B03.jp2', 
-                output_file=f'{output_folder}/image_FCI_{str(counter):2}.tiff'
+                output_file=f'{output_folder}/image_FCI_{str(counter).zfill(2)}.tiff'
             )
             
         # Append the counter
