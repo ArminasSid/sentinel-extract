@@ -57,7 +57,10 @@ def do_extracting(args):
     
     # Read csv, sort by cloud cover and ingestion date
     products_df = pd.read_csv(args.configuration, index_col=0)
-    products_df_sorted = products_df.sort_values(
+    # Filter not donwloaded products
+    products_df_filtered = products_df[products_df['complete']==True]
+    # Sort by cloud coverage and ingestiondate
+    products_df_sorted = products_df_filtered.sort_values(
         ['cloudcoverpercentage', 'ingestiondate'], 
         ascending=[True, True])
     
