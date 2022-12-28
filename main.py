@@ -41,7 +41,7 @@ def validate_args(args) -> None:
 
             
 def do_extracting(args):
-    # Basic extraction of zip files (Hardcoded to use .jp2 masks instead of polygon masks) 
+    # Basic extraction of zip files (Hardcoded to use raster masks instead of polygon masks) 
     output = f'{args.output_folder}/extracted'
     os.makedirs(name=output, exist_ok=True)
     
