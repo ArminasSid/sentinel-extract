@@ -257,11 +257,12 @@ def warp_in_memory(raster: gdal.Dataset, bounds: Bounds) -> gdal.Dataset:
         options=gdal.WarpOptions(
             format='VRT',
             outputBounds=[
-                bounds.xmin, bounds.xmax,
-                bounds.ymin, bounds.ymax
+                bounds.xmin, bounds.ymin,
+                bounds.xmax, bounds.ymax
             ]
         )
     )
+    # (minX, minY, maxX, maxY)
 
 
 def warp_to_file(image, output_path, bounds):
@@ -316,6 +317,7 @@ def cut_normal(tile, ul_x_y, lr_x_y, _input_images, _input_masks, output_folder,
             output_image = "{}/image_{}_{}.jp2".format(
                 output_folder, tile, number)
             bounds = [w_x_y[0], w_x_y[3], w_x_y[2], w_x_y[1]]
+            # xmin, xmax, ymin, ymax
 
             produce_image_without_clouds(
                 bounds, output_image, filtered_images, filtered_masks, rgb)
