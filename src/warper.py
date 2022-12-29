@@ -36,8 +36,9 @@ class Product:
         self.tci_raster = gdal.Open(self.tci_raster_path)
         self.mask_raster = gdal.Open(self.mask_raster_path)
 
-        self.bounds = Bounds(
-            self.get_raster_coordinates(raster=self.tci_raster))
+
+        xmin, ymax, xmax, ymin = self.get_raster_coordinates(raster=self.tci_raster)
+        self.bounds = Bounds(xmin, ymax, xmax, ymin)
 
     @staticmethod
     def get_raster_coordinates(raster):
@@ -52,7 +53,7 @@ class Product:
         ylen = res * raster.RasterYSize
         xmax = xmin + xlen
         ymin = ymax - ylen
-        return [xmin, ymax, xmax, ymin]
+        return xmin, ymax, xmax, ymin
 
     def contains_bounds(self, bounds: Bounds) -> bool:
         """
