@@ -61,10 +61,6 @@ class Product:
 
         bounds - Wanted coordinate bounds
         """
-        print(f'self.bounds.xmin: {self.bounds.xmin} < bounds.xmin: {bounds.xmin}. Correct: {self.bounds.xmin < bounds.xmin}')
-        print(f'self.bounds.ymax: {self.bounds.ymax} > bounds.ymax: {bounds.ymax}. Correct: {self.bounds.ymax > bounds.ymax}')
-        print(f'self.bounds.xmax: {self.bounds.xmax} > bounds.xmax: {bounds.xmax}. Correct: {self.bounds.xmax > bounds.xmax}')
-        print(f'self.bounds.ymin: {self.bounds.ymin} < bounds.ymin: {bounds.ymin}. Correct: {self.bounds.ymin < bounds.ymin}')
         if (self.bounds.xmin < bounds.xmin
                 and self.bounds.ymax > bounds.ymax
                 and self.bounds.xmax > bounds.xmax
@@ -206,7 +202,7 @@ def calculate_wanted_bounds(bounds: Bounds, step_size: float, long_offset: int, 
         xmin=bounds.xmin + (long_offset * step_size),
         ymax=bounds.ymax - (lat_offset * step_size),
         xmax=bounds.xmin + ((long_offset + 1) * step_size + step_size),
-        ymin=bounds.ymin - ((lat_offset + 1) * step_size + step_size)
+        ymin=bounds.ymax - ((lat_offset + 1) * step_size + step_size)
     )
 
 
