@@ -61,12 +61,12 @@ class Product:
 
         bounds - Wanted coordinate bounds
         """
-        if (self.bounds.xmin > bounds.xmin
-                and self.bounds.ymax < bounds.ymax
-                and self.bounds.xmax < bounds.xmax
-                and self.bounds.ymin > bounds.ymin):
-            return True
-        return False
+        if not (self.bounds.xmin < bounds.xmin
+                and self.bounds.ymax > bounds.ymax
+                and self.bounds.xmax > bounds.xmax
+                and self.bounds.ymin < bounds.ymin):
+            return False
+        return True
 
 
 def parse_args():
