@@ -325,7 +325,6 @@ def filter_products(products: list[Product], bounds: Bounds) -> list[Product]:
     """Filter products that contain required bounds."""
     filtered_products = []
     for product in products:
-        print(f'Product: {product.tci_raster_path}.')
         if product.contains_bounds(bounds=bounds):
             filtered_products.append(product)
     return filtered_products
@@ -417,8 +416,6 @@ def cut_normal1(tile: str, warping_bounds: Bounds, products: list[Product],
                 products=products,
                 bounds=wanted_bounds
             )
-
-            print(f'Products filtered: {len(filtered_products)}.')
 
             iteration = f'{str(long_offset).zfill(5)}_{str(lat_offset).zfill(5)}'
 
