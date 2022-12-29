@@ -12,7 +12,7 @@ warnings.filterwarnings("ignore")
 
 
 @dataclass
-class Coordinates:
+class Bounds:
     xmin: float
     ymax: float
     xmax: float
@@ -29,20 +29,20 @@ class Product:
     tci_raster: gdal.Dataset = None
     mask_raster: gdal.Dataset = None
 
-    coordinates: Coordinates = None
+    bounds: Bounds = None
 
     def __post_init__(self):
         self.custom_raster = gdal.Open(self.custom_raster_path)
         self.tci_raster = gdal.Open(self.tci_raster_path)
         self.mask_raster = gdal.Open(self.mask_raster_path)
 
-        self.coordinates = Coordinates(
+        self.bounds = Bounds(
             self.get_raster_coordinates(raster=self.tci_raster))
 
     @staticmethod
     def get_raster_coordinates(raster):
         """
-        Get raster coordinates from gdal.Dataset object
+        Get raster bounds from gdal.Dataset object
         """
         gt = raster.GetGeoTransform()
         xmin = gt[0]
@@ -54,16 +54,16 @@ class Product:
         ymin = ymax - ylen
         return [xmin, ymax, xmax, ymin]
 
-    def fits_coord_req(self, w_x_y) -> bool:
+    def contains_bounds(self, bounds: Bounds) -> bool:
         """
-        Checks whether product is a super set of wanted x and y coordinates (w_x_y)
+        Check whether product contains bounds (Complete overlap).
 
-        w_x_y - Wanted coordinate bounds
+        bounds - Wanted coordinate bounds
         """
-        if (self.coordinates.xmin < w_x_y[0]
-                and self.coordinates.ymax > w_x_y[1]
-                and self.coordinates.xmax > w_x_y[2]
-                and self.coordinates.ymin < w_x_y[3]):
+        if (self.bounds.xmin < bounds.xmin
+                and self.bounds.ymax > bounds.ymax
+                and self.bounds.xmax > bounds.xmax
+                and self.bounds.ymin < bounds.ymin):
             return True
         return False
 
@@ -112,12 +112,12 @@ def process_output_folder(output_path: str, overwrite_allowed: bool):
 
 def tile_coords(tile):
     if str(tile).lower() == 'south':
-        return Coordinates(
+        return Bounds(
             xmin=22.620849609375, ymax=54.983918190363234,
             xmax=26.015625000000, ymin=53.878440403328830
         )
     elif str(tile).lower() == 'north':
-        return Coordinates(
+        return Bounds(
             xmin=20.84111110000, ymax=56.46855975598276,
             xmax=26.87255859375, ymin=54.89556479077338
         )
@@ -173,8 +173,36 @@ def calculate_iterations(starting_point, end_point, step):
     else:
         return ((end_point - starting_point) / step)
 
-def calculate_iterations1(bounds, step):
-    
+
+def calculate_range(start_point: float, end_point: float, step_size: float) -> list:
+    """Given start_point, end_point and step_size return a range of values."""
+    if start_point < end_point:
+        # Invert values if start_point is smaller than end point
+        # enables to have same calculation for later
+        start_point, end_point = end_point, start_point
+
+    return range(int(((start_point - end_point) / step_size)))
+
+# def calculate_iterations1(bounds, step):
+
+
+def calculate_wanted_bounds(bounds: Bounds, step_size: float, long_offset: int, lat_offset: int) -> Bounds:
+    """
+    Given bounds, step_size and offsets, calculate next bound iteration.
+
+    bounds - original bounds object.  
+    step_size - size of single offset within bounds.
+    lat_offset - latitue offset
+    long_offset - longtitude offset
+
+    returns - Bounds object
+    """
+    return Bounds(
+        xmin=bounds.xmin + (long_offset * step_size),
+        ymax=bounds.ymax - (lat_offset * step_size),
+        xmax=bounds.xmin + ((long_offset + 1) * step_size + step_size),
+        ymin=bounds.ymin - ((lat_offset + 1) * step_size + step_size)
+    )
 
 
 def wanted_x_y(ul_x_y, step, i_offset, j_offset):
@@ -219,6 +247,20 @@ def filter_images1(custom_rasters, tci_rasters, mask_rasters, coords_rasters, w_
 
 def warp_memory(image, bounds):
     return gdal.Warp('', image, format='VRT', outputBounds=bounds)
+
+
+def warp_in_memory(raster: gdal.Dataset, bounds: Bounds) -> gdal.Dataset:
+    return gdal.Warp(
+        destNameOrDestDS='',
+        srcDSOrSrcDSTab=raster,
+        options=gdal.WarpOptions(
+            format='VRT',
+            outputBounds=[
+                bounds.xmin, bounds.xmax,
+                bounds.ymin, bounds.ymax
+            ]
+        )
+    )
 
 
 def warp_to_file(image, output_path, bounds):
@@ -278,30 +320,112 @@ def cut_normal(tile, ul_x_y, lr_x_y, _input_images, _input_masks, output_folder,
                 bounds, output_image, filtered_images, filtered_masks, rgb)
 
 
-def cut_normal1(tile, warping_bounds, products, output_folder, step):
-    i_range = range(int(calculate_iterations(ul_x_y[0], lr_x_y[0], step)))
-    j_range = range(int(calculate_iterations(ul_x_y[1], lr_x_y[1], step)))
-    _input_coords = []
-    for image in _input_images:
-        _input_coords.append(image_coordinates(image))
-    tbar = tqdm(i_range)
-    for i in tbar:
-        for j in j_range:
-            w_x_y = wanted_x_y(ul_x_y, step, i, j)
+def filter_products(products: list[Product], bounds: Bounds) -> list[Product]:
+    """Filter products that contain required bounds."""
+    filtered_products = []
+    for product in products:
+        if product.contains_bounds(bounds=bounds):
+            filtered_products.append(product)
+    return filtered_products
 
-            filtered_images, filtered_masks, filtered_coords = filter_images(
-                _input_images,
-                _input_masks,
-                _input_coords,
-                w_x_y
+
+def produce_mosaic_image(products: list[Product], bounds: Bounds, custom_output_folder: str,
+                         tci_output_folder: str, tile: str, iteration: str):
+
+    image_name = f'image_{tile}_{iteration}.tiff'
+
+    fit = None
+    for product in products:
+        img = warp_in_memory(raster=product.tci_raster, bounds=bounds)
+
+        if contains_dead_pixels(image=img):
+            # If contains "dead pixels" don't use it.
+            continue
+
+        if fit is None:
+            fit = product
+
+        msk = warp_in_memory(raster=product.mask_raster, bounds=bounds)
+        if contains_clouds(image=msk):
+            # If raster breaks threshold of allowed clouds, move on
+            continue
+
+        warp_product_to_file(
+            product=product,
+            custom_output_folder=custom_output_folder,
+            tci_output_folder=tci_output_folder,
+            image_name=image_name,
+            bounds=bounds
+        )
+        return
+
+    if fit is not None:
+        warp_product_to_file(
+            product=fit,
+            custom_output_folder=custom_output_folder,
+            tci_output_folder=tci_output_folder,
+            image_name=image_name,
+            bounds=bounds
+        )
+
+
+def warp_product_to_file(product: Product, custom_output_folder: str, tci_output_folder: str,
+                         image_name: str, bounds: Bounds):
+    # Warp custom raster
+    warp_to_file(
+        image=product.custom_raster,
+        output_path=f'{custom_output_folder}/{image_name}',
+        bounds=bounds
+    )
+
+    # Warp tci raster
+    warp_to_file(
+        image=product.tci_raster,
+        output_path=f'{tci_output_folder}/{image_name}',
+        bounds=bounds
+    )
+
+
+def cut_normal1(tile: str, warping_bounds: Bounds, products: list[Product],
+                output_folder: str, step_size: float):
+    longtitude_range = calculate_range(
+        warping_bounds.xmin, warping_bounds.xmax, step_size)
+    latitude_range = calculate_range(
+        warping_bounds.ymax, warping_bounds.ymin, step_size)
+
+    # Progress bar only for latitude
+    tbar = tqdm(longtitude_range)
+
+    # Make directories
+    custom_output_folder = f'{output_folder}/custom'
+    tci_output_folder = f'{output_folder}/tci'
+    os.makedirs(name=custom_output_folder, exist_ok=True)
+    os.makedirs(name=tci_output_folder, exist_ok=True)
+
+    for long_offset in tbar:
+        for lat_offset in latitude_range:
+            wanted_bounds = calculate_wanted_bounds(
+                bounds=warping_bounds,
+                step_size=step_size,
+                long_offset=long_offset,
+                lat_offset=lat_offset
             )
-            number = '{0}_{1}'.format(str(i).zfill(5), str(j).zfill(5))
-            output_image = "{}/image_{}_{}.jp2".format(
-                output_folder, tile, number)
-            bounds = [w_x_y[0], w_x_y[3], w_x_y[2], w_x_y[1]]
 
-            produce_image_without_clouds(
-                bounds, output_image, filtered_images, filtered_masks, rgb)
+            filtered_products = filter_products(
+                products=products,
+                bounds=wanted_bounds
+            )
+
+            iteration = f'{str(long_offset).zfill(5)}_{str(lat_offset).zfill(5)}'
+
+            produce_mosaic_image(
+                products=filtered_products,
+                bounds=wanted_bounds,
+                custom_output_folder=custom_output_folder,
+                tci_output_folder=tci_output_folder,
+                tile=tile,
+                iteration=iteration
+            )
 
 
 def load_rasters(image_paths):
@@ -328,8 +452,6 @@ def get_rasters(input_folder: str):
 
 
 def warp(input_folder, output_folder):
-    files = os.listdir(input_folder)
-
     fci_rasters, tci_rasters, mask_rasters = get_rasters(
         input_folder=input_folder)
 
@@ -348,16 +470,17 @@ def warp(input_folder, output_folder):
 
     rgb = is_image_rgb(tci_rasters[0])
 
-    step = 0.00642
+    step_size = 0.00642
     for tile in tiles:
         print("Forming {} part".format(tile))
         bounds = tile_coords(tile=tile)
-        cut_normal(
+        cut_normal1(
             tile=tile,
-
+            warping_bounds=bounds,
+            products=products,
+            output_folder=output_folder,
+            step_size=step_size
         )
-        cut_normal(tile, ul_x_y, lr_x_y, images,
-                   masks, output_folder, step, rgb)
 
 
 def main():
