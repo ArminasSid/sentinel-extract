@@ -469,8 +469,6 @@ def warp(input_folder, output_folder):
 
     tiles = ["north", "south"]
 
-    rgb = is_image_rgb(tci_rasters[0])
-
     step_size = 0.00642
     for tile in tiles:
         print("Forming {} part".format(tile))
