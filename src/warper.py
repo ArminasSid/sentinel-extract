@@ -61,6 +61,10 @@ class Product:
 
         bounds - Wanted coordinate bounds
         """
+        print(f'self.bounds.xmin: {self.bounds.xmin}; bounds.xmin: {bounds.xmin}')
+        print(f'self.bounds.ymax: {self.bounds.ymax}; bounds.ymax: {bounds.ymax}')
+        print(f'self.bounds.xmax: {self.bounds.xmax}; bounds.xmax: {bounds.xmax}')
+        print(f'self.bounds.ymin: {self.bounds.ymin}; bounds.ymin: {bounds.ymin}')
         if (self.bounds.xmin < bounds.xmin
                 and self.bounds.ymax > bounds.ymax
                 and self.bounds.xmax > bounds.xmax
@@ -325,6 +329,7 @@ def filter_products(products: list[Product], bounds: Bounds) -> list[Product]:
     """Filter products that contain required bounds."""
     filtered_products = []
     for product in products:
+        print(f'Product: {product.tci_raster_path}.')
         if product.contains_bounds(bounds=bounds):
             filtered_products.append(product)
     return filtered_products
