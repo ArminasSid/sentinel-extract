@@ -266,8 +266,17 @@ def warp_in_memory(raster: gdal.Dataset, bounds: Bounds) -> gdal.Dataset:
 
 
 def warp_to_file(image, output_path, bounds):
-    return gdal.Warp(output_path, image, format='GTiff', outputBounds=bounds)
-
+    return gdal.Warp(
+        destNameOrDestDS=output_path,
+        srcDSOrSrcDSTab=image,
+        options=gdal.WarpOptions(
+            outputBounds=[
+                bounds.xmin, bounds.ymin,
+                bounds.xmax, bounds.ymax
+            ]
+        )
+    )
+    
 
 def produce_image_without_clouds(bounds, output_path, images, masks, rgb):
     fit = None
