@@ -417,7 +417,7 @@ def cut_normal1(tile: str, warping_bounds: Bounds, products: list[Product],
                 bounds=wanted_bounds
             )
 
-            print(f'Products filtered: {len(filter_products)}.')
+            print(f'Products filtered: {len(filtered_products)}.')
 
             iteration = f'{str(long_offset).zfill(5)}_{str(lat_offset).zfill(5)}'
 
