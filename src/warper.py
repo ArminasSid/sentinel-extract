@@ -339,7 +339,7 @@ def produce_mosaic_image(products: list[Product], bounds: Bounds, custom_output_
     for product in products:
         img = warp_in_memory(raster=product.tci_raster, bounds=bounds)
 
-        if contains_dead_pixels(image=img):
+        if contains_dead_pixels_rgb(image=img):
             # If contains "dead pixels" don't use it.
             continue
 
