@@ -53,7 +53,8 @@ def merge_bands(R: str, G: str, B: str, output_file: str) -> None:
             destName=fp.name,
             srcDSOrSrcDSTab=[R, G, B],
             options=gdal.BuildVRTOptions(
-                separate=True
+                separate=True,
+                resolution='highest'
             )
         )
 
