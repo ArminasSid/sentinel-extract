@@ -53,8 +53,7 @@ def merge_bands(R: str, G: str, B: str, output_file: str) -> None:
             destName=fp.name,
             srcDSOrSrcDSTab=[R, G, B],
             options=gdal.BuildVRTOptions(
-                separate=True,
-                outputSRS='EPSG:4126'
+                separate=True
             )
         )
 
@@ -62,8 +61,7 @@ def merge_bands(R: str, G: str, B: str, output_file: str) -> None:
             destName=output_file,
             srcDS=fp.name,
             options=gdal.TranslateOptions(
-                outputType=gdalconst.GDT_UInt16,
-                outputSRS='EPSG:4126'
+                outputType=gdalconst.GDT_UInt16
             )
         )
 
@@ -71,8 +69,10 @@ def copy_file_change_extension(input_path: str, output_path: str) -> None:
     gdal.Warp(
         destNameOrDestDS=output_path,
         srcDSOrSrcDSTab=input_path,
-        warpOptions = "NUM_THREADS=ALL_CPUS",
-        dstSRS='EPSG:4126'
+        options=gdal.WarpOptions(
+            warpOptions = "NUM_THREADS=ALL_CPUS",
+            dstSRS='EPSG:4126'
+        )
     )
 
 
@@ -105,6 +105,21 @@ def extract(input_folder: str, input_zipfiles: list[str], output_folder: str) ->
             #     output_file=f'{output_folder}/image_TCI_{str(counter).zfill(2)}.tiff'
             # )
 
+            # Produce False Color Image, change coord system
+            merge_bands(
+                R=f'{tmp_dir}/B08.jp2',
+                G=f'{tmp_dir}/B04.jp2',
+                B=f'{tmp_dir}/B03.jp2',
+                output_file=f'{tmp_dir}/FCI.jp2'
+            )
+
+            # Copy FCI image, change coord system
+            copy_file_change_extension(
+                input_path=f'{tmp_dir}/FCI.jp2',
+                output_path=f'{output_folder}/image_FCI_{str(counter).zfill(2)}.tiff'
+            )
+
+
             # Copy TCI image, change coord system
             copy_file_change_extension(
                 input_path=f'{tmp_dir}/TCI.jp2',
@@ -117,13 +132,7 @@ def extract(input_folder: str, input_zipfiles: list[str], output_folder: str) ->
                 output_path=f'{output_folder}/mask_{str(counter).zfill(2)}.tiff'
             )
 
-            # Produce False Color Image, change coord system
-            merge_bands(
-                R=f'{tmp_dir}/B08.jp2', 
-                G=f'{tmp_dir}/B04.jp2', 
-                B=f'{tmp_dir}/B03.jp2', 
-                output_file=f'{output_folder}/image_FCI_{str(counter).zfill(2)}.tiff'
-            )
+
             
         # Append the counter
         counter += 1
