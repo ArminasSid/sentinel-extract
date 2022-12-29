@@ -62,7 +62,8 @@ def merge_bands(R: str, G: str, B: str, output_file: str) -> None:
             destName=output_file,
             srcDS=fp.name,
             options=gdal.TranslateOptions(
-                outputType=gdalconst.GDT_UInt16
+                outputType=gdalconst.GDT_UInt16,
+                outputSRS='EPSG:4126'
             )
         )
 
