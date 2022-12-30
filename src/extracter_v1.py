@@ -66,12 +66,25 @@ def merge_bands(R: str, G: str, B: str, output_file: str) -> None:
             )
         )
 
+
+def reproject_and_change_format(input_path: str, output_path: str) -> None:
+    gdal.Warp(
+        destNameOrDestDS=output_path,
+        srcDSOrSrcDSTab=input_path,
+        options=gdal.WarpOptions(
+            multithread=True,
+            dstSRS='EPSG:4126',
+            format='GTiff'
+        )
+    )
+
+
 def copy_file_change_extension(input_path: str, output_path: str) -> None:
     gdal.Warp(
         destNameOrDestDS=output_path,
         srcDSOrSrcDSTab=input_path,
         options=gdal.WarpOptions(
-            warpOptions = "NUM_THREADS=ALL_CPUS",
+            multithread=True,
             dstSRS='EPSG:4126'
         )
     )
@@ -94,22 +107,9 @@ def extract(input_folder: str, input_zipfiles: list[str], output_folder: str) ->
     for zipfile in tqdm(input_zipfiles):
         zipfile = f'{input_folder}/{zipfile}.zip'
         with tempfile.TemporaryDirectory() as tmp_dir:
-            print('Extracting rasters...')
             extract_bands_from_zip_file(zipfile=zipfile, output_folder=tmp_dir, bands=bands)
-            
-            print('Extracting cloudmask...')
             extract_cloudmsk_from_zip_file(zipfile=zipfile, output_folder=tmp_dir, counter=counter)
 
-            # Produce True Color Image
-            # Not needed, provided int8 based version works fine
-            # merge_bands(
-            #     R=f'{tmp_dir}/B04.jp2', 
-            #     G=f'{tmp_dir}/B03.jp2', 
-            #     B=f'{tmp_dir}/B02.jp2', 
-            #     output_file=f'{output_folder}/image_TCI_{str(counter).zfill(2)}.tiff'
-            # )
-
-            print('Merging bands...')
             # Produce False Color Image, change coord system
             merge_bands(
                 R=f'{tmp_dir}/B08.jp2',
@@ -121,20 +121,20 @@ def extract(input_folder: str, input_zipfiles: list[str], output_folder: str) ->
             print('Writing rasters to output_folder...')
 
             # Copy FCI image, change coord system
-            copy_file_change_extension(
+            reproject_and_change_format(
                 input_path=f'{tmp_dir}/FCI.jp2',
                 output_path=f'{output_folder}/image_FCI_{str(counter).zfill(2)}.tiff'
             )
 
 
             # Copy TCI image, change coord system
-            copy_file_change_extension(
+            reproject_and_change_format(
                 input_path=f'{tmp_dir}/TCI.jp2',
                 output_path=f'{output_folder}/image_TCI_{str(counter).zfill(2)}.tiff'
             )
 
             # Copy mask image, change coord system
-            copy_file_change_extension(
+            reproject_and_change_format(
                 input_path=f'{tmp_dir}/mask_{str(counter).zfill(2)}.jp2',
                 output_path=f'{output_folder}/mask_{str(counter).zfill(2)}.tiff'
             )
