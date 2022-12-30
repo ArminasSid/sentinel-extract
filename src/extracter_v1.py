@@ -9,6 +9,8 @@ from glob import glob
 import os
 import shutil
 
+gdal.SetConfigOption("GDAL_NUM_THREADS", "ALL_CPUS")
+
 
 def find_band(file_list: List[str], band: str) -> str:
     # Hardcoded Sentinel-2 precision values
@@ -79,17 +81,6 @@ def reproject_and_change_format(input_path: str, output_path: str) -> None:
     )
 
 
-def copy_file_change_extension(input_path: str, output_path: str) -> None:
-    gdal.Warp(
-        destNameOrDestDS=output_path,
-        srcDSOrSrcDSTab=input_path,
-        options=gdal.WarpOptions(
-            multithread=True,
-            dstSRS='EPSG:4126'
-        )
-    )
-
-
 def extract(input_folder: str, input_zipfiles: list[str], output_folder: str) -> None:
     """
     Extract, merge bands and reproject rasters.
@@ -117,8 +108,6 @@ def extract(input_folder: str, input_zipfiles: list[str], output_folder: str) ->
                 B=f'{tmp_dir}/B03.jp2',
                 output_file=f'{tmp_dir}/FCI.jp2'
             )
-
-            print('Writing rasters to output_folder...')
 
             # Copy FCI image, change coord system
             reproject_and_change_format(
