@@ -73,7 +73,7 @@ def reproject_and_change_format(input_path: str, output_path: str) -> None:
         srcDSOrSrcDSTab=input_path,
         options=gdal.WarpOptions(
             multithread=True,
-            warpOptions="NUM_THREADS=ALL_CPUS"
+            warpOptions="NUM_THREADS=ALL_CPUS",
             dstSRS='EPSG:4126',
             format='GTiff'
         )
