@@ -9,8 +9,6 @@ from glob import glob
 import os
 import shutil
 
-gdal.SetConfigOption("GDAL_NUM_THREADS", "ALL_CPUS")
-
 
 def find_band(file_list: List[str], band: str) -> str:
     # Hardcoded Sentinel-2 precision values
@@ -75,6 +73,7 @@ def reproject_and_change_format(input_path: str, output_path: str) -> None:
         srcDSOrSrcDSTab=input_path,
         options=gdal.WarpOptions(
             multithread=True,
+            warpOptions="NUM_THREADS=ALL_CPUS"
             dstSRS='EPSG:4126',
             format='GTiff'
         )
