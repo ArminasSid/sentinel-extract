@@ -94,7 +94,10 @@ def extract(input_folder: str, input_zipfiles: list[str], output_folder: str) ->
     for zipfile in tqdm(input_zipfiles):
         zipfile = f'{input_folder}/{zipfile}.zip'
         with tempfile.TemporaryDirectory() as tmp_dir:
+            print('Extracting rasters...')
             extract_bands_from_zip_file(zipfile=zipfile, output_folder=tmp_dir, bands=bands)
+            
+            print('Extracting cloudmask...')
             extract_cloudmsk_from_zip_file(zipfile=zipfile, output_folder=tmp_dir, counter=counter)
 
             # Produce True Color Image
@@ -106,6 +109,7 @@ def extract(input_folder: str, input_zipfiles: list[str], output_folder: str) ->
             #     output_file=f'{output_folder}/image_TCI_{str(counter).zfill(2)}.tiff'
             # )
 
+            print('Merging bands...')
             # Produce False Color Image, change coord system
             merge_bands(
                 R=f'{tmp_dir}/B08.jp2',
@@ -113,6 +117,8 @@ def extract(input_folder: str, input_zipfiles: list[str], output_folder: str) ->
                 B=f'{tmp_dir}/B03.jp2',
                 output_file=f'{tmp_dir}/FCI.jp2'
             )
+
+            print('Writing rasters to output_folder...')
 
             # Copy FCI image, change coord system
             copy_file_change_extension(
