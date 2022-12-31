@@ -34,7 +34,7 @@ def check_output_folder(folder):
 
 def merge(input_folder: str, output_folder: str, output_name: str):
     # Get list of rasters
-    images = glob(f'{input_folder}/*FCI*.tiff')
+    images = glob(f'{input_folder}/*.tiff')
 
     print(f'Building vrt file for: {output_name}')
     vrt = gdal.BuildVRT(destName='', srcDSOrSrcDSTab=images)
