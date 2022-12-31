@@ -132,7 +132,7 @@ def main():
     # Merge images into final single image
     # ------
     print('Initiating image merging')
-    output_warped = f'{args.output_warped}/warped'
+    output_warped = f'{args.output_folder}/warped'
     output_merged = do_merging(args=args, warped=output_warped)
     # ------    
     
