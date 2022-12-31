@@ -114,7 +114,7 @@ def main():
     # validate_args(args=args)
     
     # Create output_folder
-    os.makedirs(name=args.output_folder)
+    os.makedirs(name=args.output_folder, exist_ok=True)
     
     # Begin processing
     # Extract images
