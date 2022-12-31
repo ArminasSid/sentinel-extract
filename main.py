@@ -111,7 +111,7 @@ def main():
     args = parse_args()
     
     # Validate provided data
-    validate_args(args=args)
+    # validate_args(args=args)
     
     # Create output_folder
     os.makedirs(name=args.output_folder)
@@ -120,18 +120,19 @@ def main():
     # Extract images
     # ------
     print('Initiating image extraction.')
-    output_extracted = do_extracting(args=args)
+    # output_extracted = do_extracting(args=args)
     # ------
     
     # Warp images into a mosaic, while removing clouds
     # ------
     print('Initiating image warping.')
-    output_warped = do_warping(args=args, reprojected=output_extracted)
+    # output_warped = do_warping(args=args, reprojected=output_extracted)
     # ------
     
     # Merge images into final single image
     # ------
     print('Initiating image merging')
+    output_warped = f'{args.output_warped}/warped'
     output_merged = do_merging(args=args, warped=output_warped)
     # ------    
     
