@@ -1,8 +1,7 @@
 import argparse
 import os
 import shutil
-from src import converter, warper, merger
-from src import extracter_v1 as extracter
+from src import extracter, warper, merger
 import pandas as pd
 from glob import glob
 
@@ -45,16 +44,6 @@ def do_extracting(args):
     output = f'{args.output_folder}/extracted'
     os.makedirs(name=output, exist_ok=True)
     
-    # systems_of_interest = ['T34', 'T35']
-    # folders = []
-    # for element in systems_of_interest:
-    #     # Create folder path
-    #     folders.append(f'{output}/{element}')
-        
-    # for folder in folders:
-    #     # Create folders if they don't exist yet
-    #     os.makedirs(name=folder, exist_ok=True)
-    
     # Read csv, sort by cloud cover and ingestion date
     products_df = pd.read_csv(args.configuration, index_col=0)
     # Filter not donwloaded products
@@ -72,33 +61,8 @@ def do_extracting(args):
         input_zipfiles=zipfiles,
         output_folder=output
     )
-    # for product in tqdm(products_df_sorted['title'].tolist()):
-    #     # Extract products
-    #     extracter.extract(
-    #         input_folder=args.input_folder,
-    #         input_zipfiles=
-    #     )
-
-        
-        # Hardcoded TCI value (True Color Image) 
-        # extracter.pull_products0(args.input_folder, 'TCI', '{}.zip'.format(product), folders)
     
     return output    
-
-        
-def do_converting(args, extracted):
-    # Define output folder for reprojected images
-    output = f'{args.output_folder}/reprojected'
-    os.makedirs(name=output, exist_ok=True)
-    
-    # Get all input folders
-    input_folders = glob(f'{extracted}/*')
-    
-    # Reprojection
-    for folder in input_folders:
-        converter.formatter(input_folder=folder, output_folder=output)
-        
-    return output
 
 
 def do_warping(args, reprojected):
@@ -117,20 +81,29 @@ def do_warping(args, reprojected):
 
 def do_merging(args, warped):
     # Create output folder for merged raster
-    output = f'{args.output_folder}/results'
-    os.makedirs(name=output, exist_ok=True)
+    output_folder = f'{args.output_folder}/results'
+    os.makedirs(name=output_folder, exist_ok=True)
     
-    # Define output name
-    name = 'raster'
-    
-    # Merge images
-    merger.Merge_Images(
-        input_folder=warped,
-        output_folder=output,
-        output_name=name
+    output_name_tci = 'TCI.tiff'
+    output_name_custom = 'custom.tiff'
+
+    input_folder_tci = f'{warped}/tci'
+    input_folder_custom = f'{warped}/custom'
+
+    # Do merging
+    merger.merge(
+        input_folder=input_folder_tci,
+        output_folder=output_folder,
+        output_name=output_name_tci
+    )
+
+    merger.merge(
+        input_folder=input_folder_custom,
+        output_folder=output_folder,
+        output_name=output_name_custom
     )
     
-    return output
+    return output_folder
         
 
 def main():
@@ -148,12 +121,6 @@ def main():
     # ------
     print('Initiating image extraction.')
     output_extracted = do_extracting(args=args)
-    # ------
-    
-    # Reporoject images (Change coordinate systems to WGS84)
-    # ------
-    # print('Initiating image reprojection.')
-    # output_reprojected = do_converting(args=args, extracted=output_extracted)
     # ------
     
     # Warp images into a mosaic, while removing clouds

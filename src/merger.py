@@ -32,34 +32,29 @@ def check_output_folder(folder):
     else:
         raise OSError('Folder already exists.')
 
-def BuildVRT(output_path, output_name, input_paths):
-    output = "{}/{}".format(output_path, "{}.vrt".format(output_name))
-    gdal.SetConfigOption('GDAL_NUM_THREADS', '4')
-    vrt = gdal.BuildVRT(output, input_paths)
-    print("Vrt file {}.vrt created.".format(output_name))
-    return vrt
+def merge(input_folder: str, output_folder: str, output_name: str):
+    # Get list of rasters
+    images = glob(f'{input_folder}/*FCI*.tiff')
 
-def Merge(vrt, output_path, output_name):
-    # vrt = "{}/{}".format(output_path, "{}.vrt".format(output_name))
-    gdal.SetConfigOption('GDAL_VRT_ENABLE_PYTHON', 'YES')
-    gdal.SetConfigOption('GDAL_CACHEMAX', '1024')
-    opts = gdal.TranslateOptions(format='GTIFF', creationOptions="NUM_THREADS=ALL_CPUS")
-    gdal.Translate("{}/{}".format(output_path, "{}.tiff".format(output_name)), vrt, options=opts)
+    print(f'Building vrt file for: {output_name}')
+    vrt = gdal.BuildVRT(destName='', srcDSOrSrcDSTab=images)
 
-    print("Translate complete. File {}.tiff created.".format(output_name))
-
-def Merge_Images(input_folder, output_folder, output_name):
-    images = glob('{}/*.jp2'.format(input_folder))
-    if len(images) == 0:
-        images = glob('{}/*.tiff'.format(input_folder))
-
-    vrt = BuildVRT(output_folder, output_name, images)
-
-    Merge(vrt, output_folder, output_name)
-
+    print(f'Building complete mosaic raster: {output_name}')
+    gdal.Translate(
+        destName=f'{output_folder}/{output_name}',
+        srcDS=vrt,
+        options=gdal.TranslateOptions(
+            creationOptions='NUM_THREADS=ALL_CPUS',
+            format='GTIFF'
+        )   
+    )
 
 
 if __name__=='__main__':
     args = parse_args()
 
-    Merge_Images(args.input_folder, args.output_folder, args.output_name)
+    merge(
+        input_folder=args.input_folder,
+        output_folder=args.output_folder,
+        output_name=args.output_name
+    )

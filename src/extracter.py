@@ -1,141 +1,197 @@
-import argparse
+from osgeo import gdal, gdalconst
+from zipfile import ZipFile
 import fnmatch
-import os, glob, shutil
-import zipfile
-import pandas as pd
+from typing import List
 import tempfile
+import pandas as pd
 from tqdm import tqdm
-
-def parse_arguments():
-    parser = argparse.ArgumentParser(description='Extraction of sentinel-2 products')
-    # model and dataset
-    parser.add_argument("-i", "--input_products", type=str, default='products.csv',
-                        help='Path to products file, contains product descriptions (default: products.csv)')
-    parser.add_argument("-f", "--input_folder", type=str, default='products',
-                        help='Folder of products (default: products)')
-    parser.add_argument("-l", "--longtitude", type=str, default='long.txt',
-                        help='Longtitude file, must use T before every point, |T34,T35| (default: long.txt)')
-    parser.add_argument("-p", "--pull_mask", type=int, default=0,
-                        help="Extract type of mask, 0 for jp2, 1 for gml. (default: 0)")
-    parser.add_argument("-t", "--type", type=str, default="TCI",
-                        help="Type of image to extract. (default: TCI)")
-    parser.add_argument("-o", "--output_folder", type=str, default="output",
-                        help="Output folder. (default: output)")
-
-    args = parser.parse_args()
-
-    if not os.path.exists(args.input_products):
-        raise FileNotFoundError("--input_products file not found.")
-    if not os.path.exists(args.input_folder):
-        raise NotADirectoryError("--input_folder not found.")
-    if not os.path.exists(args.longtitude):
-        raise FileNotFoundError("--longtitude file not found.")
-    if args.pull_mask != 1 and args.pull_mask != 0:
-        raise IndexError("--pull_mask index out of range.")
-
-    return args
-
-number = 0
-# path = 'C:/pythonStuff/sentinel/products2020'
+from glob import glob
+import os
+import shutil
 
 
-def check_folder(folder_path):
-    if not os.path.exists(folder_path):
-        os.makedirs(folder_path)
-        print('Folder {} has been created.'.format(folder_path))
+def find_band(file_list: List[str], band: str) -> str:
+    # Hardcoded Sentinel-2 precision values
+    precisions = ['R10m', 'R20m', 'R60m']
 
-# for filename in os.listdir(path):
-def pull_products1(path, image_type, filename, folders):
-    global number
-    for folder in folders:
-        if fnmatch.fnmatch(filename, '*{}*'.format(folder)):
-            src = "{}/{}".format(path, filename)
-            dst = folder
-            with tempfile.TemporaryDirectory() as tmpdirname:
-                print(tmpdirname)
-                temp_location = tmpdirname
-                with zipfile.ZipFile(src, 'r') as zip_ref:
-                    zip_ref.extractall(temp_location)
-                filelist = glob.glob(os.path.join(temp_location, "*"))
-                path_to_img = ''
-                for f in filelist:
-                    path_to_img = "{}/GRANULE".format(f)
-                    path_to_msk = path_to_img       
-                filelist = glob.glob(os.path.join(path_to_img, "*"))
-                for f in filelist:
-                    path_to_img = "{}/IMG_DATA/R10m".format(f)
-                    path_to_msk = "{}/QI_DATA".format(f)
-                image_name = ''
-                for file in os.listdir(path_to_img):
-                    if fnmatch.fnmatch(file, '*_{}_*'.format(image_type)):
-                        image_name = file
-                        path_to_img = "{}/{}".format(path_to_img, file)
-                for file in os.listdir(path_to_msk):
-                    if fnmatch.fnmatch(file, 'MSK_CLOUDS_B00.gml'):
-                        path_to_msk = "{}/{}".format(path_to_msk, file)
-                shutil.copy(path_to_img, dst)
-                shutil.copy(path_to_msk, dst)
-                os.rename('{}/{}'.format(dst, image_name), "{}/image_{}.jp2".format(dst, number))
-                os.rename('{}/{}'.format(dst, 'MSK_CLOUDS_B00.gml'), "{}/mask_{}.gml".format(dst, number))
-                number += 1
-#                 print('Image: {} and mask: {} created.'.format("image_{}.jp2".format(number), "mask_{}.gml".format(number)))
-                return
+    for precision in precisions:
+        files = fnmatch.filter(names=file_list, pat=f'**/{precision}/**{band}**.jp2')
+        if files:
+            return files[0]
+        
+    raise FileNotFoundError(f'Failed to detect {band} in zip file.')
+
+
+def extract_bands_from_zip_file(zipfile: str, output_folder: str, bands: List[str]):
+    with ZipFile(file=zipfile) as zip_ref:
+        files = zip_ref.namelist()
+
+        # Extract bands
+        for band in bands:
+            filepath = find_band(file_list=files, band=band)
+
+            # Get zip_info object, change filename
+            zip_info = zip_ref.getinfo(name=filepath)
+            zip_info.filename = f'{band}.jp2'
+            zip_ref.extract(member=zip_info, path=output_folder)
+
+def extract_cloudmsk_from_zip_file(zipfile: str, output_folder: str, counter: int):
+    with ZipFile(file=zipfile) as zip_ref:
+        files = zip_ref.namelist()
+
+        # Extract cloud image
+        pattern = '**CLDPRB_20m**.jp2'
+        filepath = fnmatch.filter(names=files, pat=pattern)[0]
+        zip_info = zip_ref.getinfo(name=filepath)
+        zip_info.filename = f'mask_{str(counter).zfill(2)}.jp2'
+        zip_ref.extract(member=zip_info, path=output_folder)
+
+
+def merge_bands(R: str, G: str, B: str, output_file: str) -> None:
+    with tempfile.NamedTemporaryFile(suffix='.vrt') as fp:
+        gdal.BuildVRT(
+            destName=fp.name,
+            srcDSOrSrcDSTab=[R, G, B],
+            options=gdal.BuildVRTOptions(
+                separate=True,
+                resolution='highest'
+            )
+        )
+
+        gdal.Translate(
+            destName=output_file,
+            srcDS=fp.name,
+            options=gdal.TranslateOptions(
+                outputType=gdalconst.GDT_UInt16
+            )
+        )
+
+
+def reproject_and_change_format(input_path: str, output_path: str) -> None:
+    gdal.Warp(
+        destNameOrDestDS=output_path,
+        srcDSOrSrcDSTab=input_path,
+        options=gdal.WarpOptions(
+            multithread=True,
+            warpOptions="NUM_THREADS=ALL_CPUS",
+            dstSRS='EPSG:4126',
+            format='GTiff'
+        )
+    )
+
+
+def extract(input_folder: str, input_zipfiles: list[str], output_folder: str) -> None:
+    """
+    Extract, merge bands and reproject rasters.
+
+    These processes have been unified in order to save time, since gdal supports doing
+    all the actions at once.
+    """
+    
+    # Output image counter index (example: image_01.tiff)
+    counter = 0
+
+    # Bands to extract
+    bands = ['B02', 'B03', 'B04', 'B08', 'TCI']
+
+    for zipfile in tqdm(input_zipfiles):
+        zipfile = f'{input_folder}/{zipfile}.zip'
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            extract_bands_from_zip_file(zipfile=zipfile, output_folder=tmp_dir, bands=bands)
+            extract_cloudmsk_from_zip_file(zipfile=zipfile, output_folder=tmp_dir, counter=counter)
+
+            # Produce False Color Image, change coord system
+            merge_bands(
+                R=f'{tmp_dir}/B08.jp2',
+                G=f'{tmp_dir}/B04.jp2',
+                B=f'{tmp_dir}/B03.jp2',
+                output_file=f'{tmp_dir}/FCI.jp2'
+            )
+
+            # Copy FCI image, change coord system
+            reproject_and_change_format(
+                input_path=f'{tmp_dir}/FCI.jp2',
+                output_path=f'{output_folder}/image_FCI_{str(counter).zfill(2)}.tiff'
+            )
+
+
+            # Copy TCI image, change coord system
+            reproject_and_change_format(
+                input_path=f'{tmp_dir}/TCI.jp2',
+                output_path=f'{output_folder}/image_TCI_{str(counter).zfill(2)}.tiff'
+            )
+
+            # Copy mask image, change coord system
+            reproject_and_change_format(
+                input_path=f'{tmp_dir}/mask_{str(counter).zfill(2)}.jp2',
+                output_path=f'{output_folder}/mask_{str(counter).zfill(2)}.tiff'
+            )
+
+
             
-
-# for filename in os.listdir(path):
-def pull_products0(path, image_type, filename, folders):
-    global number
-    for folder in folders:
-        if fnmatch.fnmatch(filename, '*{}*'.format(folder[folder.rfind('/')+1:])):
-            src = "{}/{}".format(path, filename)
-            dst = folder
-            with tempfile.TemporaryDirectory() as tmpdirname:
-                temp_location = tmpdirname
-                with zipfile.ZipFile(src, 'r') as zip_ref:
-                    zip_ref.extractall(temp_location)
-                filelist = glob.glob(os.path.join(temp_location, "*"))
-                path_to_img = ''
-                for f in filelist:
-                    path_to_img = "{}/GRANULE".format(f)
-                    path_to_msk = path_to_img       
-                filelist = glob.glob(os.path.join(path_to_img, "*"))
-                for f in filelist:
-                    path_to_img = "{}/IMG_DATA/R10m".format(f)
-                    path_to_msk = "{}/QI_DATA".format(f)
-                image_name = ''
-                for file in os.listdir(path_to_img):
-                    if fnmatch.fnmatch(file, '*_{}_*'.format(image_type)):
-                        image_name = file
-                        path_to_img = "{}/{}".format(path_to_img, file)
-                for file in os.listdir(path_to_msk):
-                    if fnmatch.fnmatch(file, 'MSK_CLDPRB_20m.jp2'):
-                        path_to_msk = "{}/{}".format(path_to_msk, file)
-                shutil.copy(path_to_img, dst)
-                shutil.copy(path_to_msk, dst)
-                os.rename('{}/{}'.format(dst, image_name), "{}/image_{}.jp2".format(dst, number))
-                os.rename('{}/{}'.format(dst, 'MSK_CLDPRB_20m.jp2'), "{}/mask_{}.jp2".format(dst, number))
-                number += 1
-#                 print('Image: {} and mask: {} created.'.format("image_{}.jp2".format(number), "mask_{}.jp2".format(number)))
-                return
- 
+        # Append the counter
+        counter += 1
 
 
-if __name__=='__main__':
-    args = parse_arguments()
+def main1():
+    # Iterate folder of Sentinel-2 products, extract them into a single folder
 
-    folders = []
-    with open(args.longtitude) as f:
-        line = f.readline()
-        for element in line.split(','):
-            folders.append("{}/{}".format(args.output_folder, element))
+    input_folder = '/home/arminius/repos/sentinel-downloader/rasters'
+    input_zipfiles = [
+        'S2A_MSIL2A_20220605T093041_N0400_R136_T35VLC_20220605T142109',
+        'S2A_MSIL2A_20220605T093041_N0400_R136_T34VFH_20220605T142109',
+        'S2A_MSIL2A_20220604T100031_N0400_R122_T34UEG_20220604T141210'
+    ]
 
-    for folder in folders:
-        check_folder(folder)
+    output_folder = 'rasters/'
 
-    products_df = pd.read_csv(args.input_products, index_col=0)
-    products_df_sorted = products_df.sort_values(['cloudcoverpercentage', 'ingestiondate'], ascending=[True, True])
-    for product in tqdm(products_df_sorted['title'].tolist()):
-        if args.pull_mask == 0:
-            pull_products0(args.input_folder, args.type, '{}.zip'.format(product), folders)
-        elif args.pull_mask == 1:
-            pull_products1(args.input_folder, args.type, '{}.zip'.format(product), folders)
+    if os.path.exists(output_folder):
+        shutil.rmtree(path=output_folder)
+    
+    # Create output folder
+    os.makedirs(name=output_folder)
+
+    extract(
+        input_folder=input_folder,
+        input_zipfiles=input_zipfiles,
+        output_folder=output_folder
+    )
+
+
+
+def main():
+    input_file = '/home/arminius/repos/sentinel-extract/S2A_MSIL2A_20220605T093041_N0400_R136_T35VLC_20220605T142109.zip'
+
+    bands = ['B02', 'B03', 'B04', 'B06', 'B08']
+    output_folder = '/tmp/test'
+
+    extract_bands_from_zip_file(zipfile=input_file, output_folder=output_folder, bands=bands)
+    extract_cloudmsk_from_zip_file(zipfile=input_file, output_folder=output_folder, counter=0)
+
+    # Produce True Color Image
+    merge_bands(
+        R=f'{output_folder}/B04.jp2', 
+        G=f'{output_folder}/B03.jp2', 
+        B=f'{output_folder}/B02.jp2', 
+        output_file=f'{output_folder}/TCI.tiff'
+    )
+
+    # Produce False Color Image
+    merge_bands(
+        R=f'{output_folder}/B08.jp2', 
+        G=f'{output_folder}/B04.jp2', 
+        B=f'{output_folder}/B03.jp2', 
+        output_file=f'{output_folder}/FCI.tiff'
+    )
+
+    # Produce Weird Color Image
+    merge_bands(
+        R=f'{output_folder}/B08.jp2',
+        G=f'{output_folder}/B06.jp2',
+        B=f'{output_folder}/B04.jp2',
+        output_file=f'{output_folder}/WCI.tiff'
+    )
+
+
+if __name__ == '__main__':
+    main1()
