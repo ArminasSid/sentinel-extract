@@ -63,7 +63,7 @@ def merge_bands(R: str, G: str, B: str, output_file: str) -> None:
             srcDS=fp.name,
             options=gdal.TranslateOptions(
                 outputType=gdalconst.GDT_Byte,
-                scaleParams=[0, 4096, 0, 255]
+                scaleParams=[0, 4096, [0, 255]]
             )
         )
 
