@@ -145,7 +145,7 @@ def contains_dead_pixels(image):
     return False
 
 
-def contains_dead_pixels_rgb(image):
+def contains_dead_pixels_rgb(image: gdal.Dataset):
     data = np.transpose(image.ReadAsArray(), axes=(1, 2, 0))
     if np.count_nonzero(data == np.zeros(3, dtype=int)) > 10:
         return True
