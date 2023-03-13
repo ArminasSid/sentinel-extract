@@ -15,6 +15,8 @@ def parse_args():
                         help='Input folder with rasters (Default: input_folder)')
     parser.add_argument("-o", '--output_folder', type=str, default='output_folder',
                         help='Output folder path (Default: output_folder)')
+    parser.add_argument('-b', '--bands', type=str, default='BO2',
+                        help='Bands which need to be extracted (Default: [B02, B03, B04, B08])')
     parser.add_argument('--overwrite', action='store_true', default=False,
                         help='Overwrite output folder if exists')
 

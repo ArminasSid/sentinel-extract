@@ -162,7 +162,7 @@ def main1():
 def main():
     input_file = '/home/arminius/repos/sentinel-extract/S2A_MSIL2A_20220605T093041_N0400_R136_T35VLC_20220605T142109.zip'
 
-    bands = ['B02', 'B03', 'B04', 'B06', 'B08']
+    bands = ['B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B8A', 'B08', 'B11', 'B12']
     output_folder = '/tmp/test'
 
     extract_bands_from_zip_file(zipfile=input_file, output_folder=output_folder, bands=bands)
